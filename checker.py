@@ -4,15 +4,65 @@ from os import mkdir, path, getcwd
 from shutil import rmtree
 from pathlib import Path
 from dataclasses import dataclass
+from enum import Enum
 
 @dataclass
 class Style:
 
     name: str
-    errors: list[str]
+    errors: list[ErrorType]
 
     def is_valid(self):
         return (len(self.errors) == 0)
+
+correct_style = {
+    name = 'Times New Roman',
+    size = '14pt',
+    margin_right = '-1.85cm',
+    margin_left = '-1.75cm',
+    text_indent = '1.25cm',
+    text_align = 'justify',
+}
+
+class ErrorType(Enum):
+    FONT = 1
+    FONT_SIZE = 2
+    MARGIN_LEFT = 3
+    MARGIN_RIGHT = 4
+    TEXT_INDENT = 5
+    ALIGNMENT = 6
+    LOWER_OFFSET = 7
+    UPPER_OFFSET = 8
+    COLOR = 9
+    SPACING = 10
+
+    def pretty(self) -> str:
+        if self == FONT:
+            return 'шрифт Times New Roman'
+        elif self == FONT_SIZE:
+            return 'размер шрифта 14pt'
+        elif self == MARGIN_RIGHT:
+            return 'отступ справа 15мм'
+        elif self == MARGIN_LEFT:
+            return 'отступ слева 25мм'
+        elif self == TEXT_INDENT:
+            return 'абзацный отступ 125мм'
+        elif self == ALIGNMENT:
+            return 'выравнивание по ширине'
+            
+
+@dataclass
+class Error:
+
+    text: str
+    errors: list[ErrorType]
+
+    def pretty(self) -> str:
+        output = self.text +'\n'
+        output += '^' * len(self.text) + '\n'
+        output += 'Исправить оформление на:\n'
+        for error in self.errors:
+            output += f"- {error}\n"
 
 
 class StyleChecker:
@@ -85,18 +135,18 @@ class StyleChecker:
                         if (tag.find('}text-align') != -1):
                             text_align = item 
 
-            if (style_name != 'Times New Roman'):
-                errors.append('шрифт Times New Roman')
-            if (size != '14pt'):
-                errors.append('размер шрифта 14pt')
-            if (margin_right != '-1.85cm'):
-                errors.append('отступ справа 15мм')
-            if (margin_left != '-1.75cm'):
-                errors.append('отступ слева 25мм')
-            if (text_indent != '1.25cm'):
-                errors.append('абзацный отступ 125мм')
-            if (text_align != 'justify'):
-                errors.append('выравнивание по ширине')
+            if (style_name != correct_style.name):
+                errors.append(FONT)
+            if (size != correct_style.size):
+                errors.append(FONT_SIZE)
+            if (margin_right != correct_style.margin_right):
+                errors.append(MARGIN_RIGHT)
+            if (margin_left != correct_style.margin_left):
+                errors.append(MARGIN_LEFT)
+            if (text_indent != correct_style.text_indent):
+                errors.append(TEXT_INDENT)
+            if (text_align != correct_style.text_alight):
+                errors.append(ALIGNMENT)
             self.styles.append(Style(name_style, errors))
 
     def __check_style(self, style_name: str, elem: ET.Element) -> str: 
@@ -111,7 +161,7 @@ class StyleChecker:
                 if (tag.find('}style-name') != -1):
                     errors += self.__check_style(item, elem)
             if (len(errors) != 0):
-                elem.text += " Исправить оформление на: " + errors
+                elem.text = Error(elem.text, errors).pretty()
 
     def __check_header(self, elem: ET.Element, next_elem: ET.Element | None):
         if (elem.tag.find('}h') != -1 and not elem.text is None):
