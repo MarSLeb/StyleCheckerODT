@@ -108,7 +108,8 @@ class StyleChecker:
             for (tag, item) in elem.attrib.items():
                 if (tag.find('}style-name') != -1):
                     errors += self.__check_style(item, elem)
-            elem.text = str(elem.text) + " Исправить оформление на: " + errors
+            if (len(errors) != 0):
+                elem.text += " Исправить оформление на: " + errors
 
 
     def __check_header(self, elem: ET.Element, next_elem: ET.Element | None):
@@ -130,6 +131,7 @@ class StyleChecker:
                         if(next_elem is None):
                             errors += "," if (len(errors) != 0) else ""
                             errors +=' после подзаголовка не должно быть пропуска строки'
-            elem.text = str(elem.text) + " Исправить оформление на: " + errors
+            if (len(errors) != 0):
+                elem.text += " Исправить оформление на: " + errors
 
     
