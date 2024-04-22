@@ -3,15 +3,17 @@ import xml.etree.ElementTree as ET
 from os import mkdir, path, getcwd
 from shutil import rmtree
 from pathlib import Path
+from dataclasses import dataclass
 
+@dataclass
 class Style:
+
     name: str
     errors: list[str]
-    def __init__(self, name, errors):
-        self.name = name
-        self.errors = errors
-    def is_valied(self):
+
+    def is_valid(self):
         return (len(self.errors) == 0)
+
 
 class StyleChecker:
 
@@ -55,7 +57,7 @@ class StyleChecker:
         if (elem.tag.find('}style') != -1):
             errors = []
             name_style = ''
-            name_of_style = 'Liberation Serif'
+            style_name = 'Liberation Serif'
             size = '12pt'
             margin_right = '0cm'
             margin_left = '0cm'
@@ -65,15 +67,15 @@ class StyleChecker:
             for (tag_name, item_name) in elem.attrib.items():
                 if (tag_name.find('}name') != -1):
                     name_style = item_name
-            for seach_size_and_style in list(elem):
-                if (seach_size_and_style.tag.find('}text-properties') != -1):
-                    for (tag, item) in seach_size_and_style.attrib.items():
+            for child in list(elem):
+                if (child.tag.find('}text-properties') != -1):
+                    for (tag, item) in child.attrib.items():
                         if (tag.find('}font-name') != -1):
-                            name_of_style = item
+                            style_name = item
                         if (tag.find('}font-size') != -1):
                             size = item
-                if (seach_size_and_style.tag.find('}paragraph-properties') != -1):
-                    for(tag, item) in seach_size_and_style.attrib.items():
+                if (child.tag.find('}paragraph-properties') != -1):
+                    for(tag, item) in child.attrib.items():
                         if (tag.find('}margin-right') != -1):
                             margin_right = item
                         if (tag.find('}margin-left') != -1):
@@ -83,7 +85,7 @@ class StyleChecker:
                         if (tag.find('}text-align') != -1):
                             text_align = item 
 
-            if (name_of_style != 'Times New Roman'):
+            if (style_name != 'Times New Roman'):
                 errors.append('шрифт Times New Roman')
             if (size != '14pt'):
                 errors.append('размер шрифта 14pt')
@@ -94,7 +96,7 @@ class StyleChecker:
             if (text_indent != '1.25cm'):
                 errors.append('абзацный отступ 125мм')
             if (text_align != 'justify'):
-                errors.append('выравнивание по щирине')
+                errors.append('выравнивание по ширине')
             self.styles.append(Style(name_style, errors))
 
     def __check_style(self, style_name: str, elem: ET.Element) -> str: 
@@ -110,7 +112,6 @@ class StyleChecker:
                     errors += self.__check_style(item, elem)
             if (len(errors) != 0):
                 elem.text += " Исправить оформление на: " + errors
-
 
     def __check_header(self, elem: ET.Element, next_elem: ET.Element | None):
         if (elem.tag.find('}h') != -1 and not elem.text is None):
