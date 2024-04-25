@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 from os import mkdir, path, getcwd
 from shutil import rmtree
 from pathlib import Path
+import tempfile
 from dataclasses import dataclass
 from enum import Enum
 
@@ -98,30 +99,26 @@ class StyleChecker:
 
     file_name: str
     styles: list[str]
-    work_dir: str
     tree: list[ET.Element]
 
     def __init__(self, name):
         self.file_name = name
         self.styles = []
-        self.work_dir = "correct_file"
         self.tree = []
         self.__run()
 
     def __run(self):
-        mkdir(self.work_dir)
-        source_file = zipfile.ZipFile(self.file_name)
-        source_file.extractall(self.work_dir)
-        source_file.close()
+        with tempfile.TemporaryDirectory() as work_dir:
+            with zipfile.ZipFile(self.file_name) as source_file:
+                source_file.extractall(work_dir)
 
-        file = ET.parse(self.work_dir + "/content.xml")
-        root = file.getroot()
+            file = ET.parse(work_dir + "/content.xml")
+            root = file.getroot()
 
-        for elem in root.iter():
-            self.tree.append(elem)
+            for elem in root.iter():
+                self.tree.append(elem)
 
         errors = list()
-        
         for i in range(0, len(self.tree)):
             self.__is_valid_style(self.tree[i])
             errors += self.__check_simple_text(self.tree[i])
@@ -129,13 +126,6 @@ class StyleChecker:
 
         for error in errors:
             print(error.pretty())
-
-        #file.write(self.work_dir + "/content.xml")
-        #dir = Path(self.work_dir)
-        #with zipfile.ZipFile('correct_' + self.file_name , "w", zipfile.ZIP_DEFLATED) as zip_file:
-        #    for entry in dir.rglob("*"):
-        #        zip_file.write(entry, entry.relative_to(dir))
-        rmtree(path.join(getcwd(), self.work_dir))
 
     def __is_valid_style(self, elem: ET.Element):
         if (elem.tag.find('}style') != -1):
