@@ -6,23 +6,33 @@ from pathlib import Path
 from dataclasses import dataclass
 from enum import Enum
 
+
 @dataclass
-class Style:
+class StyleInfo:
+    font: str
+    size: str
+    margin_right: str
+    margin_left: str
+    text_indent: str
+    text_align: str
 
-    name: str
-    errors: list[ErrorType]
-
-    def is_valid(self):
-        return (len(self.errors) == 0)
-
-correct_style = {
-    name = 'Times New Roman',
+correct_style = StyleInfo(
+    font = 'Times New Roman',
     size = '14pt',
     margin_right = '-1.85cm',
     margin_left = '-1.75cm',
     text_indent = '1.25cm',
     text_align = 'justify',
-}
+)
+
+default_style = StyleInfo(
+    font = 'Liberation Serif',
+    margin_right = '0cm',
+    margin_left = '0cm',
+    size = '12pt',
+    text_indent = '0cm',
+    text_align = "",
+)
 
 class ErrorType(Enum):
     FONT = 1
@@ -35,21 +45,39 @@ class ErrorType(Enum):
     UPPER_OFFSET = 8
     COLOR = 9
     SPACING = 10
+    HEADER_DOT = 11
+    HEADER_NEWLINE = 12
+    SUBHEADER_NEWLINE = 13
 
     def pretty(self) -> str:
-        if self == FONT:
-            return 'шрифт Times New Roman'
-        elif self == FONT_SIZE:
-            return 'размер шрифта 14pt'
-        elif self == MARGIN_RIGHT:
-            return 'отступ справа 15мм'
-        elif self == MARGIN_LEFT:
-            return 'отступ слева 25мм'
-        elif self == TEXT_INDENT:
-            return 'абзацный отступ 125мм'
-        elif self == ALIGNMENT:
-            return 'выравнивание по ширине'
+        match self:
+            case ErrorType.FONT:
+                return 'шрифт Times New Roman'
+            case ErrorType.FONT_SIZE:
+                return 'размер шрифта 14pt'
+            case ErrorType.MARGIN_RIGHT:
+                return 'отступ справа 15мм'
+            case ErrorType.MARGIN_LEFT:
+                return 'отступ слева 25мм'
+            case ErrorType.TEXT_INDENT:
+                return 'абзацный отступ 125мм'
+            case ErrorType.ALIGNMENT:
+                return 'выравнивание по ширине'
+            case ErrorType.HEADER_DOT:
+                return 'заголовок должен оканчиваться точкой'
+            case ErrorType.HEADER_NEWLINE:
+                return 'после заглавия должна быть пропущена строка'
+            case ErrorType.SUBHEADER_NEWLINE:
+                return 'после подзаголовка не должно быть пропуска строки'
             
+@dataclass
+class Style:
+
+    name: str
+    errors: list[ErrorType]
+
+    def is_valid(self):
+        return (len(self.errors) == 0)
 
 @dataclass
 class Error:
@@ -62,7 +90,8 @@ class Error:
         output += '^' * len(self.text) + '\n'
         output += 'Исправить оформление на:\n'
         for error in self.errors:
-            output += f"- {error}\n"
+            output += f"- {error.pretty()}\n"
+        return output
 
 
 class StyleChecker:
@@ -90,29 +119,29 @@ class StyleChecker:
 
         for elem in root.iter():
             self.tree.append(elem)
+
+        errors = list()
         
         for i in range(0, len(self.tree)):
             self.__is_valid_style(self.tree[i])
-            self.__check_simple_text(self.tree[i])
-            self.__check_header(self.tree[i], self.tree[i + 1] if (i + 1 != len(self.tree)) else None)
+            errors += self.__check_simple_text(self.tree[i])
+            errors += self.__check_header(self.tree[i], self.tree[i + 1] if (i + 1 != len(self.tree)) else None)
 
-        file.write(self.work_dir + "/content.xml")
-        dir = Path(self.work_dir)
-        with zipfile.ZipFile('correct_' + self.file_name , "w", zipfile.ZIP_DEFLATED) as zip_file:
-            for entry in dir.rglob("*"):
-                zip_file.write(entry, entry.relative_to(dir))
+        for error in errors:
+            print(error.pretty())
+
+        #file.write(self.work_dir + "/content.xml")
+        #dir = Path(self.work_dir)
+        #with zipfile.ZipFile('correct_' + self.file_name , "w", zipfile.ZIP_DEFLATED) as zip_file:
+        #    for entry in dir.rglob("*"):
+        #        zip_file.write(entry, entry.relative_to(dir))
         rmtree(path.join(getcwd(), self.work_dir))
 
     def __is_valid_style(self, elem: ET.Element):
         if (elem.tag.find('}style') != -1):
             errors = []
+            style = default_style
             name_style = ''
-            style_name = 'Liberation Serif'
-            size = '12pt'
-            margin_right = '0cm'
-            margin_left = '0cm'
-            text_indent = '0cm'
-            text_align = ""
 
             for (tag_name, item_name) in elem.attrib.items():
                 if (tag_name.find('}name') != -1):
@@ -121,54 +150,54 @@ class StyleChecker:
                 if (child.tag.find('}text-properties') != -1):
                     for (tag, item) in child.attrib.items():
                         if (tag.find('}font-name') != -1):
-                            style_name = item
+                            style.font = item
                         if (tag.find('}font-size') != -1):
-                            size = item
+                            style.size = item
                 if (child.tag.find('}paragraph-properties') != -1):
                     for(tag, item) in child.attrib.items():
                         if (tag.find('}margin-right') != -1):
-                            margin_right = item
+                            style.margin_right = item
                         if (tag.find('}margin-left') != -1):
-                            margin_left = item
+                            style.margin_left = item
                         if (tag.find('}text-indent') != -1):
-                            text_indent = item   
+                            style.text_indent = item   
                         if (tag.find('}text-align') != -1):
-                            text_align = item 
+                            style.text_align = item 
 
-            if (style_name != correct_style.name):
-                errors.append(FONT)
-            if (size != correct_style.size):
-                errors.append(FONT_SIZE)
-            if (margin_right != correct_style.margin_right):
-                errors.append(MARGIN_RIGHT)
-            if (margin_left != correct_style.margin_left):
-                errors.append(MARGIN_LEFT)
-            if (text_indent != correct_style.text_indent):
-                errors.append(TEXT_INDENT)
-            if (text_align != correct_style.text_alight):
-                errors.append(ALIGNMENT)
+            if (style.font != correct_style.font):
+                errors.append(ErrorType.FONT)
+            if (style.size != correct_style.size):
+                errors.append(ErrorType.FONT_SIZE)
+            if (style.margin_right != correct_style.margin_right):
+                errors.append(ErrorType.MARGIN_RIGHT)
+            if (style.margin_left != correct_style.margin_left):
+                errors.append(ErrorType.MARGIN_LEFT)
+            if (style.text_indent != correct_style.text_indent):
+                errors.append(ErrorType.TEXT_INDENT)
+            if (style.text_align != correct_style.text_align):
+                errors.append(ErrorType.ALIGNMENT)
             self.styles.append(Style(name_style, errors))
 
-    def __check_style(self, style_name: str, elem: ET.Element) -> str: 
+    def __check_style(self, style_name: str, elem: ET.Element) -> list[ErrorType]: 
         for style in self.styles:
-            if (style_name == style.name and not style.is_valied()):
-                return (', '.join(element for element in style.errors))
+            if (style_name == style.name and not style.is_valid()):
+                return style.errors
 
-    def __check_simple_text(self, elem: ET.Element):
+    def __check_simple_text(self, elem: ET.Element) -> list[Error]:
         if (elem.tag.find('}p') != -1 and not elem.text is None):
-            errors = ""
+            errors = list()
             for (tag, item) in elem.attrib.items():
                 if (tag.find('}style-name') != -1):
                     errors += self.__check_style(item, elem)
             if (len(errors) != 0):
-                elem.text = Error(elem.text, errors).pretty()
+                return [Error(elem.text, errors)]
+        return []
 
-    def __check_header(self, elem: ET.Element, next_elem: ET.Element | None):
+    def __check_header(self, elem: ET.Element, next_elem: ET.Element | None) -> list[Error]:
         if (elem.tag.find('}h') != -1 and not elem.text is None):
-            errors = ""
-            elem.text.rstrip(' ')
+            errors = list()
             if (elem.text[-1] != '.'):
-                errors += " заголовок должен оканчиваться точкой"
+                errors.append(ErrorType.HEADER_DOT)
 
             for (tag, item) in elem.attrib.items():
                 if (tag.find('}style-name') != -1):
@@ -176,13 +205,12 @@ class StyleChecker:
                 if (tag.find('}outline-level') != -1):
                     if(item == '1'):
                         if (not next_elem.text is None or next_elem is None):
-                            errors += "," if (len(errors) != 0) else ""
-                            errors += ' после заглавия должна быть пропущена строка'
+                            errors.append(ErrorType.HEADER_NEWLINE)
                     else:
                         if(next_elem is None):
-                            errors += "," if (len(errors) != 0) else ""
-                            errors +=' после подзаголовка не должно быть пропуска строки'
+                            errors.append(ErrorType.SUBHEADER_NEWLINE)
             if (len(errors) != 0):
-                elem.text += " Исправить оформление на: " + errors
+                return [Error(elem.text, errors)]
+        return []
 
     
