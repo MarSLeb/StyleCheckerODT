@@ -49,6 +49,7 @@ class ErrorType(Enum):
     HEADER_DOT = 11
     HEADER_NEWLINE = 12
     SUBHEADER_NEWLINE = 13
+    INVALID_STYLE = 14
 
     def pretty(self) -> str:
         match self:
@@ -70,15 +71,11 @@ class ErrorType(Enum):
                 return 'после заглавия должна быть пропущена строка'
             case ErrorType.SUBHEADER_NEWLINE:
                 return 'после подзаголовка не должно быть пропуска строки'
-            
-@dataclass
-class Style:
+            case ErrorType.INVALID_STYLE:
+                return '???'
+            case _:
+                return 'неизвестная ошибка'
 
-    name: str
-    errors: list[ErrorType]
-
-    def is_valid(self):
-        return (len(self.errors) == 0)
 
 @dataclass
 class Error:
@@ -98,12 +95,12 @@ class Error:
 class StyleChecker:
 
     file_name: str
-    styles: list[str]
+    styleErorrs: dict[list[ErrorType]]
     tree: list[ET.Element]
 
     def __init__(self, name):
         self.file_name = name
-        self.styles = []
+        self.styleErrors = {}
         self.tree = []
         self.__run()
 
@@ -118,7 +115,7 @@ class StyleChecker:
             for elem in root.iter():
                 self.tree.append(elem)
 
-        errors = list()
+        errors = []
         for i in range(0, len(self.tree)):
             self.__is_valid_style(self.tree[i])
             errors += self.__check_simple_text(self.tree[i])
@@ -166,32 +163,33 @@ class StyleChecker:
                 errors.append(ErrorType.TEXT_INDENT)
             if (style.text_align != correct_style.text_align):
                 errors.append(ErrorType.ALIGNMENT)
-            self.styles.append(Style(name_style, errors))
+            self.styleErrors[name_style] = errors
 
-    def __check_style(self, style_name: str, elem: ET.Element) -> list[ErrorType]: 
-        for style in self.styles:
-            if (style_name == style.name and not style.is_valid()):
-                return style.errors
+    def __check_style(self, style_name: str) -> list[ErrorType]: 
+        try:
+            return self.styleErrors[style_name]
+        except:
+            return [ErrorType.INVALID_STYLE]
 
     def __check_simple_text(self, elem: ET.Element) -> list[Error]:
         if (elem.tag.find('}p') != -1 and not elem.text is None):
-            errors = list()
+            errors = []
             for (tag, item) in elem.attrib.items():
                 if (tag.find('}style-name') != -1):
-                    errors += self.__check_style(item, elem)
+                    errors += self.__check_style(item)
             if (len(errors) != 0):
                 return [Error(elem.text, errors)]
         return []
 
     def __check_header(self, elem: ET.Element, next_elem: ET.Element | None) -> list[Error]:
         if (elem.tag.find('}h') != -1 and not elem.text is None):
-            errors = list()
+            errors = []
             if (elem.text[-1] != '.'):
                 errors.append(ErrorType.HEADER_DOT)
 
             for (tag, item) in elem.attrib.items():
                 if (tag.find('}style-name') != -1):
-                    self.__check_style(item, elem)
+                    errors += self.__check_style(item)
                 if (tag.find('}outline-level') != -1):
                     if(item == '1'):
                         if (not next_elem.text is None or next_elem is None):
