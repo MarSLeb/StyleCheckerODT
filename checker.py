@@ -97,14 +97,15 @@ class StyleChecker:
     file_name: str
     styleErorrs: dict[list[ErrorType]]
     tree: list[ET.Element]
+    all_errors: list[str]
 
     def __init__(self, name):
         self.file_name = name
         self.styleErrors = {}
         self.tree = []
-        self.__run()
+        self.all_errors = []
 
-    def __run(self):
+    def run(self):
         with tempfile.TemporaryDirectory() as work_dir:
             with zipfile.ZipFile(self.file_name) as source_file:
                 source_file.extractall(work_dir)
@@ -122,7 +123,8 @@ class StyleChecker:
             errors += self.__check_header(self.tree[i], self.tree[i + 1] if (i + 1 != len(self.tree)) else None)
 
         for error in errors:
-            print(error.pretty())
+            self.all_errors.append(error.pretty())
+        return self.all_errors
 
     def __is_valid_style(self, elem: ET.Element):
         if (elem.tag.find('}style') != -1):
