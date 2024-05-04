@@ -5,9 +5,23 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QFileDialog,
 import sys
 import checker
 
+class ScrollLabel(QScrollArea):
+    def __init__(self):
+        QScrollArea.__init__(self)
+        self.setWidgetResizable(True)
+        content = QWidget(self)
+        self.setWidget(content)
+        lay = QVBoxLayout(content)
+        self.label = QLabel(content)
+        self.label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self.label.setWordWrap(True)
+        lay.addWidget(self.label)
+
+    def setText(self, text):
+        self.label.setText(text)
 
 class MainWindow(QMainWindow):
-    label: QLabel
+    scrollArea: ScrollLabel
     def __init__(self):
         super().__init__()
 
@@ -20,23 +34,11 @@ class MainWindow(QMainWindow):
         button.setCheckable(True)
         button.clicked.connect(self.push_select_file_buttom)
 
-        self.label = QLabel(self)
-        self.label.setFrameStyle(QFrame.Panel | QFrame.Sunken)
-        self.label.setText("Файл не выбран.")
-        self.label.setAlignment(Qt.AlignCenter)
-
-        scrollArea = QScrollArea()
-        scrollArea.setWidgetResizable(True)
-        content = QWidget(scrollArea)
-        scrollArea.setWidget(content)
-        lay = QVBoxLayout(content)
-        self.label = QLabel(content)
-        self.label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-        self.label.setWordWrap(True)
-        lay.addWidget(self.label)
+        self.scrollArea = ScrollLabel()
+        self.scrollArea.setText("Файл не выбран")
 
         layout.addWidget(button)
-        layout.addWidget(self.label)
+        layout.addWidget(self.scrollArea)
 
         widget = QWidget()
         widget.setLayout(layout)
@@ -47,9 +49,9 @@ class MainWindow(QMainWindow):
         file = getOpenFilesAndDirs(filter='(*.odt)')
         if (len(file) == 1):
             check = checker.StyleChecker(file[0])
-            self.label.setText('\n'.join(check.run()))
+            self.scrollArea.setText('\n'.join(check.run()))
         else: 
-            self.label.setText('Выберете один файл.')
+            self.scrollArea.setText('Выберете один файл.')
 
 
 def getOpenFilesAndDirs(parent=None, caption='', directory='', 

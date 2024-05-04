@@ -98,12 +98,14 @@ class StyleChecker:
     styleErorrs: dict[list[ErrorType]]
     tree: list[ET.Element]
     all_errors: list[str]
+    data: list[str]
 
     def __init__(self, name):
         self.file_name = name
         self.styleErrors = {}
         self.tree = []
         self.all_errors = []
+        self.data = []
 
     def run(self):
         with tempfile.TemporaryDirectory() as work_dir:
@@ -115,6 +117,8 @@ class StyleChecker:
 
             for elem in root.iter():
                 self.tree.append(elem)
+            for elem in root.textiter():
+                self.data.append(elem)
 
         errors = []
         for i in range(0, len(self.tree)):
