@@ -1,8 +1,5 @@
 import zipfile
 import xml.etree.ElementTree as ET
-from os import mkdir, path, getcwd
-from shutil import rmtree
-from pathlib import Path
 import tempfile
 from dataclasses import dataclass
 from enum import Enum
@@ -117,7 +114,7 @@ class StyleChecker:
 
             for elem in root.iter():
                 self.tree.append(elem)
-            for elem in root.textiter():
+            for elem in root.itertext():
                 self.data.append(elem)
 
         errors = []
