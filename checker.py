@@ -4,6 +4,7 @@ import tempfile
 from dataclasses import dataclass
 from enum import Enum
 from anytree import NodeMixin, RenderTree
+from time import sleep
 
 
 @dataclass
@@ -47,6 +48,9 @@ class ErrorType(Enum):
     HEADER_DOT = 11
     HEADER_NEWLINE = 12
     INVALID_STYLE = 13
+    SPACE_ABOVE_IMAGE = 14
+    SPACE_UNDER_IMAGE = 15
+    NAME_OF_IMAGE = 16
 
     def pretty(self) -> str:
         match self:
@@ -63,11 +67,18 @@ class ErrorType(Enum):
             case ErrorType.ALIGNMENT:
                 return 'выравнивание по ширине'
             case ErrorType.HEADER_DOT:
-                return 'заголовок должен оканчиваться точкой'
+                return 'точка после номера и в конце названия раздела не ставится'
             case ErrorType.HEADER_NEWLINE:
                 return 'после заглавия должна быть пропущена строка'
             case ErrorType.INVALID_STYLE:
                 return '???'
+            case ErrorType.SPACE_ABOVE_IMAGE:
+                return 'при размещении страниц в тексте следует отделять рисунок от текста пустой строкой сверху'
+            case ErrorType.SPACE_UNDER_IMAGE:
+                return 'при размещении страниц в тексте следует отделять рисунок от текста пустой строкой снизу'
+            case ErrorType.NAME_OF_IMAGE:
+                return 'не найдено или неправильно оформлено имя рисунка. Рисунки нумеруются \
+арабскими цифрами по схеме «номер раздела – точка – номер рисунка»'
             case _:
                 return 'неизвестная ошибка'
 
@@ -130,28 +141,64 @@ class StyleChecker:
             load_children(root_tree, file.getroot())
 
         for chapter in root_tree.children:
-            if (chapter.tag ==  "font-face-decls"):
-                pass 
-            elif (chapter.tag == "automatic-styles"):
-                for style in chapter.children:
-                    self.__is_valid_style(style)
-            elif (chapter.tag == "body"):
-                for body_chapter in chapter.children:
-                    if (body_chapter.tag == "text"):
-                        self.__check_text(body_chapter)
+            match chapter.tag:
+                case "font-face-decls":
+                    pass 
+                case "automatic-styles":
+                    for style in chapter.children:
+                        self.__is_valid_style(style)
+                case "body":
+                    for body_chapter in chapter.children:
+                        if (body_chapter.tag == "text"):
+                            self.__check_text(body_chapter)
         return self.all_errors
 
     def __check_text(self, root: Elem_xml_tree):
-        errors = []
         for i in range(len(root.children)):
-            errors += self.__check_simple_text(root.children[i])
-            errors += self.__check_header(root.children[i], root.children[i + 1] \
-                                  if (i + 1 != len(root.children)) else None)
+            errors = []
+            match root.children[i].tag:
+                case "table":
+                    pass
+                case "p":
+                    errors += self.__check_simple_text(root.children[i])
+                    errors += self.__check_image(root, i)
+                case "h":
+                    errors += self.__check_header(root.children[i], root.children[i + 1] \
+                                      if (i + 1 != len(root.children)) else None)
+                case "table-of-content":
+                    pass
+                case "list":
+                    pass
+                
             for error in errors:
                 self.all_errors.append(error.pretty())
-            errors = []
-            if (root.children[i].tag != "p" or root.children[i].tag != "h"):
+
+            if (root.children[i].tag != "p" and root.children[i].tag != "h"):
                 self.__check_text(root.children[i])
+            
+            
+    def __check_image(self, node: Elem_xml_tree, num):
+        for _, _, elem in RenderTree(node.children[num]):
+            if (elem.tag == "image"):
+                text = ""
+                errors = []
+                if (num == 0 or internal_text(node.children[num - 1]) == ""):
+                    errors.append(ErrorType.SPACE_ABOVE_IMAGE)
+                if (num - 1 == len(node.children) or \
+                    num + 1 < len(node.children) and internal_text(node.children[num + 1]) == ""):
+                    errors.append(ErrorType.SPACE_UNDER_IMAGE)
+                for i in range(num + 1, len(node.children)):
+                    if (node.children[i].tag == "p"):
+                        match text.split():
+                            case ["рисунок", _, "-", *_]:
+                                pass
+                            case _:
+                                errors.append(ErrorType.NAME_OF_IMAGE)
+                        if (len(errors) != 0):
+                            return [Error(text, errors)]
+                        else:
+                            return []
+        return []
 
     def __is_valid_style(self, elem: Elem_xml_tree):
         if (elem.tag == "style"):
@@ -174,14 +221,15 @@ class StyleChecker:
                 if (child.tag == "paragraph-properties"):
                     for(tag, item) in child.xml_elem.attrib.items():
                         _, _, tail_tag = tag.partition('}')
-                        if (tail_tag == "margin-right"):
-                            style.margin_right = item
-                        if (tail_tag == "margin-left"):
-                            style.margin_left = item
-                        if (tail_tag == "text-indent"):
-                            style.text_indent = item   
-                        if (tail_tag == "text-align"):
-                            style.text_align = item 
+                        match tail_tag:
+                            case "margin-right":
+                                style.margin_right = item
+                            case "margin-left":
+                                style.margin_left = item
+                            case "text-indent":
+                                style.text_indent = item   
+                            case "text-align":
+                                style.text_align = item 
 
             if (style.font != correct_style.font):
                 errors.append(ErrorType.FONT)
@@ -205,7 +253,7 @@ class StyleChecker:
 
     def __check_simple_text(self, elem: Elem_xml_tree) -> list[Error]:
         text = internal_text(elem)
-        if (elem.tag == "p" and text != ""):
+        if (text != ""):
             for child in elem.children:
                 if (child.tag == "annotation" or child.tag == "annotation-end"):
                     return []
@@ -220,25 +268,27 @@ class StyleChecker:
         return []
 
     def __check_header(self, elem: Elem_xml_tree, next_elem: Elem_xml_tree | None) -> list[Error]:
-        if (elem.tag == "h"):
+        text = internal_text(elem)
+        if (text != ""):
             for child in elem.children:
                 if (child.tag == "annotation" or child.tag == "annotation-end"):
-                    return []
-            text = internal_text(elem)
+                    return []                
             errors = []
-
             for (tag, item) in elem.xml_elem.attrib.items():
                 _, _, tail_tag = tag.partition('}')
                 if (tail_tag == "style-name"):
                     errors += self.__check_style(item)
-
-            if (text == "" or next_elem is None):
+            num = ""
+            for i in text:
+                if (i.isnumeric()):
+                    num += i
+            if (text == "" or next_elem is None or text[len(num)] == '.'):
                 errors.append(ErrorType.HEADER_NEWLINE)
             if (text[-1] == '.'):
                 errors.append(ErrorType.HEADER_DOT)
-
             if (len(errors) != 0):
                 return [Error(text, errors)]
         return []
+    
 
     
