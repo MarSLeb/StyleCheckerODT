@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 import tempfile
 from dataclasses import dataclass
 from enum import Enum
+from anytree import NodeMixin, RenderTree
 
 
 @dataclass
@@ -45,8 +46,7 @@ class ErrorType(Enum):
     SPACING = 10
     HEADER_DOT = 11
     HEADER_NEWLINE = 12
-    SUBHEADER_NEWLINE = 13
-    INVALID_STYLE = 14
+    INVALID_STYLE = 13
 
     def pretty(self) -> str:
         match self:
@@ -66,8 +66,6 @@ class ErrorType(Enum):
                 return 'заголовок должен оканчиваться точкой'
             case ErrorType.HEADER_NEWLINE:
                 return 'после заглавия должна быть пропущена строка'
-            case ErrorType.SUBHEADER_NEWLINE:
-                return 'после подзаголовка не должно быть пропуска строки'
             case ErrorType.INVALID_STYLE:
                 return '???'
             case _:
@@ -89,6 +87,25 @@ class Error:
         return output
 
 
+class Elem_xml_tree(ET.Element, NodeMixin):
+    def __init__(self, xml_elem: ET.Element, parent=None, children=None):
+        super(Elem_xml_tree).__init__()
+        _, _, tail = xml_elem.tag.partition('}')
+        self.tag = tail
+        self.xml_elem = xml_elem
+        self.parent = parent
+        if children:
+            self.children = children
+
+def load_children(parent: Elem_xml_tree, elem_xml: ET.Element):
+    for elem in list(elem_xml):
+        children = Elem_xml_tree(elem, parent=parent)
+        load_children(children, elem)
+
+def internal_text(root: Elem_xml_tree):
+    return " ".join(root.xml_elem.itertext())
+
+
 class StyleChecker:
 
     file_name: str
@@ -106,52 +123,64 @@ class StyleChecker:
 
     def run(self):
         with tempfile.TemporaryDirectory() as work_dir:
-            with zipfile.ZipFile(self.file_name) as source_file:
+            with zipfile.ZipFile("test.odt") as source_file:
                 source_file.extractall(work_dir)
-
             file = ET.parse(work_dir + "/content.xml")
-            root = file.getroot()
+            root_tree = Elem_xml_tree(file.getroot())
+            load_children(root_tree, file.getroot())
 
-            for elem in root.iter():
-                self.tree.append(elem)
-            for elem in root.itertext():
-                self.data.append(elem)
-
-        errors = []
-        for i in range(0, len(self.tree)):
-            self.__is_valid_style(self.tree[i])
-            errors += self.__check_simple_text(self.tree[i])
-            errors += self.__check_header(self.tree[i], self.tree[i + 1] if (i + 1 != len(self.tree)) else None)
-
-        for error in errors:
-            self.all_errors.append(error.pretty())
+        for chapter in root_tree.children:
+            if (chapter.tag ==  "font-face-decls"):
+                pass 
+            elif (chapter.tag == "automatic-styles"):
+                for style in chapter.children:
+                    self.__is_valid_style(style)
+            elif (chapter.tag == "body"):
+                for body_chapter in chapter.children:
+                    if (body_chapter.tag == "text"):
+                        self.__check_text(body_chapter)
         return self.all_errors
 
-    def __is_valid_style(self, elem: ET.Element):
-        if (elem.tag.find('}style') != -1):
+    def __check_text(self, root: Elem_xml_tree):
+        errors = []
+        for i in range(len(root.children)):
+            errors += self.__check_simple_text(root.children[i])
+            errors += self.__check_header(root.children[i], root.children[i + 1] \
+                                  if (i + 1 != len(root.children)) else None)
+            for error in errors:
+                self.all_errors.append(error.pretty())
+            errors = []
+            if (root.children[i].tag != "p" or root.children[i].tag != "h"):
+                self.__check_text(root.children[i])
+
+    def __is_valid_style(self, elem: Elem_xml_tree):
+        if (elem.tag == "style"):
             errors = []
             style = default_style
-            name_style = ''
+            name_style = ""
 
-            for (tag_name, item_name) in elem.attrib.items():
-                if (tag_name.find('}name') != -1):
-                    name_style = item_name
-            for child in list(elem):
-                if (child.tag.find('}text-properties') != -1):
-                    for (tag, item) in child.attrib.items():
-                        if (tag.find('}font-name') != -1):
+            for (tag, item) in elem.xml_elem.attrib.items():
+                _, _, tail_tag = tag.partition('}')
+                if (tail_tag == "name"):
+                    name_style = item
+            for child in elem.children:
+                if (child.tag == "text-properties"):
+                    for (tag, item) in child.xml_elem.attrib.items():
+                        _, _, tail_tag = tag.partition('}')
+                        if (tail_tag == "font-name"):
                             style.font = item
-                        if (tag.find('}font-size') != -1):
+                        if (tail_tag == "font-size"):
                             style.size = item
-                if (child.tag.find('}paragraph-properties') != -1):
-                    for(tag, item) in child.attrib.items():
-                        if (tag.find('}margin-right') != -1):
+                if (child.tag == "paragraph-properties"):
+                    for(tag, item) in child.xml_elem.attrib.items():
+                        _, _, tail_tag = tag.partition('}')
+                        if (tail_tag == "margin-right"):
                             style.margin_right = item
-                        if (tag.find('}margin-left') != -1):
+                        if (tail_tag == "margin-left"):
                             style.margin_left = item
-                        if (tag.find('}text-indent') != -1):
+                        if (tail_tag == "text-indent"):
                             style.text_indent = item   
-                        if (tag.find('}text-align') != -1):
+                        if (tail_tag == "text-align"):
                             style.text_align = item 
 
             if (style.font != correct_style.font):
@@ -174,34 +203,42 @@ class StyleChecker:
         except:
             return [ErrorType.INVALID_STYLE]
 
-    def __check_simple_text(self, elem: ET.Element) -> list[Error]:
-        if (elem.tag.find('}p') != -1 and not elem.text is None):
+    def __check_simple_text(self, elem: Elem_xml_tree) -> list[Error]:
+        text = internal_text(elem)
+        if (elem.tag == "p" and text != ""):
+            for child in elem.children:
+                if (child.tag == "annotation" or child.tag == "annotation-end"):
+                    return []
             errors = []
-            for (tag, item) in elem.attrib.items():
-                if (tag.find('}style-name') != -1):
+
+            for (tag, item) in elem.xml_elem.attrib.items():
+                _, _, tail_tag = tag.partition('}')
+                if (tail_tag == "style-name"):
                     errors += self.__check_style(item)
             if (len(errors) != 0):
-                return [Error(elem.text, errors)]
+                return [Error(text, errors)]
         return []
 
-    def __check_header(self, elem: ET.Element, next_elem: ET.Element | None) -> list[Error]:
-        if (elem.tag.find('}h') != -1 and not elem.text is None):
+    def __check_header(self, elem: Elem_xml_tree, next_elem: Elem_xml_tree | None) -> list[Error]:
+        if (elem.tag == "h"):
+            for child in elem.children:
+                if (child.tag == "annotation" or child.tag == "annotation-end"):
+                    return []
+            text = internal_text(elem)
             errors = []
-            if (elem.text[-1] != '.'):
+
+            for (tag, item) in elem.xml_elem.attrib.items():
+                _, _, tail_tag = tag.partition('}')
+                if (tail_tag == "style-name"):
+                    errors += self.__check_style(item)
+
+            if (text == "" or next_elem is None):
+                errors.append(ErrorType.HEADER_NEWLINE)
+            if (text[-1] == '.'):
                 errors.append(ErrorType.HEADER_DOT)
 
-            for (tag, item) in elem.attrib.items():
-                if (tag.find('}style-name') != -1):
-                    errors += self.__check_style(item)
-                if (tag.find('}outline-level') != -1):
-                    if(item == '1'):
-                        if (not next_elem.text is None or next_elem is None):
-                            errors.append(ErrorType.HEADER_NEWLINE)
-                    else:
-                        if(next_elem is None):
-                            errors.append(ErrorType.SUBHEADER_NEWLINE)
             if (len(errors) != 0):
-                return [Error(elem.text, errors)]
+                return [Error(text, errors)]
         return []
 
     
