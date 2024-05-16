@@ -15,14 +15,16 @@ class StyleInfo:
     margin_left: str
     text_indent: str
     text_align: str
+    color: str
 
 correct_style = StyleInfo(
     font = 'Times New Roman',
     size = '14pt',
     margin_right = '-1.85cm',
     margin_left = '-1.75cm',
-    text_indent = '1.25cm',
+    text_indent = '1.251cm',
     text_align = 'justify',
+    color = '#000000',
 )
 
 default_style = StyleInfo(
@@ -32,6 +34,7 @@ default_style = StyleInfo(
     size = '12pt',
     text_indent = '0cm',
     text_align = "",
+    color = '#000000',
 )
 
 class ErrorType(Enum):
@@ -78,7 +81,9 @@ class ErrorType(Enum):
                 return 'при размещении страниц в тексте следует отделять рисунок от текста пустой строкой снизу'
             case ErrorType.NAME_OF_IMAGE:
                 return 'не найдено или неправильно оформлено имя рисунка. Рисунки нумеруются \
-арабскими цифрами по схеме «номер раздела – точка – номер рисунка»'
+арабскими цифрами по схеме «рисунок номер_раздела.номер_рисунка - описание»'
+            case ErrorType.COLOR:
+                return 'цвет текста должен быть черным'
             case _:
                 return 'неизвестная ошибка'
 
@@ -114,7 +119,7 @@ def load_children(parent: Elem_xml_tree, elem_xml: ET.Element):
         load_children(children, elem)
 
 def internal_text(root: Elem_xml_tree):
-    return " ".join(root.xml_elem.itertext())
+    return "".join(root.xml_elem.itertext())
 
 
 class StyleChecker:
@@ -179,25 +184,37 @@ class StyleChecker:
             
     def __check_image(self, node: Elem_xml_tree, num):
         for _, _, elem in RenderTree(node.children[num]):
+            if (elem.tag == "annotation" or elem.tag == "annotation-end"):
+                return []  
+        for _, _, elem in RenderTree(node.children[num]):
             if (elem.tag == "image"):
                 text = ""
                 errors = []
-                if (num == 0 or internal_text(node.children[num - 1]) == ""):
+                if (num == 0 or internal_text(node.children[num - 1]) != ""):
                     errors.append(ErrorType.SPACE_ABOVE_IMAGE)
                 if (num - 1 == len(node.children) or \
-                    num + 1 < len(node.children) and internal_text(node.children[num + 1]) == ""):
+                    num + 1 < len(node.children) and internal_text(node.children[num + 1]) != ""):
                     errors.append(ErrorType.SPACE_UNDER_IMAGE)
-                for i in range(num + 1, len(node.children)):
-                    if (node.children[i].tag == "p"):
-                        match text.split():
+                
+                i = num + 1
+                while (i < len(node.children) and i < num + 3):
+                    name = internal_text(node.children[i])
+                    if (node.children[i].tag == "p" and name != ""):
+                        for _, _, meow in RenderTree(node.children[i]):
+                            if (meow.tag == "annotation" or meow.tag == "annotation-end"):
+                                return []
+                        match name.split():
                             case ["рисунок", _, "-", *_]:
-                                pass
+                                text = name
                             case _:
                                 errors.append(ErrorType.NAME_OF_IMAGE)
                         if (len(errors) != 0):
                             return [Error(text, errors)]
                         else:
                             return []
+                    i += 1
+                errors.append(ErrorType.NAME_OF_IMAGE)
+                return [Error(text, errors)]
         return []
 
     def __is_valid_style(self, elem: Elem_xml_tree):
@@ -218,6 +235,8 @@ class StyleChecker:
                             style.font = item
                         if (tail_tag == "font-size"):
                             style.size = item
+                        if (tag.find('}color') != -1):
+                            style.color = item
                 if (child.tag == "paragraph-properties"):
                     for(tag, item) in child.xml_elem.attrib.items():
                         _, _, tail_tag = tag.partition('}')
@@ -243,6 +262,8 @@ class StyleChecker:
                 errors.append(ErrorType.TEXT_INDENT)
             if (style.text_align != correct_style.text_align):
                 errors.append(ErrorType.ALIGNMENT)
+            if (style.color != correct_style.color):
+                errors.append(ErrorType.COLOR)
             self.styleErrors[name_style] = errors
 
     def __check_style(self, style_name: str) -> list[ErrorType]: 
@@ -254,7 +275,7 @@ class StyleChecker:
     def __check_simple_text(self, elem: Elem_xml_tree) -> list[Error]:
         text = internal_text(elem)
         if (text != ""):
-            for child in elem.children:
+            for _, _, child in RenderTree(elem):
                 if (child.tag == "annotation" or child.tag == "annotation-end"):
                     return []
             errors = []
@@ -270,7 +291,7 @@ class StyleChecker:
     def __check_header(self, elem: Elem_xml_tree, next_elem: Elem_xml_tree | None) -> list[Error]:
         text = internal_text(elem)
         if (text != ""):
-            for child in elem.children:
+            for _, _, child in RenderTree(elem):
                 if (child.tag == "annotation" or child.tag == "annotation-end"):
                     return []                
             errors = []
