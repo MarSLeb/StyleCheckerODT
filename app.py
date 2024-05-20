@@ -51,7 +51,7 @@ class MainWindow(QMainWindow):
             check = checker.StyleChecker(file[0])
             self.scrollArea.setText('\n'.join(check.run()))
         else: 
-            self.scrollArea.setText('Выберете один файл.')
+            self.scrollArea.setText('Выберите один файл.')
 
 
 def getOpenFilesAndDirs(parent=None, caption='', directory='', 
