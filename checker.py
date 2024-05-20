@@ -19,6 +19,35 @@ class StyleInfo:
     padding_bottom: str
     color: str
 
+    def collect_errors(self):
+        errors = []
+
+        if (self.font != correct_style.font):
+            errors.append(ErrorType.FONT)
+        if (self.size != correct_style.size):
+            errors.append(ErrorType.FONT_SIZE)
+        if (self.margin_right != correct_style.margin_right):
+            errors.append(ErrorType.MARGIN_RIGHT)
+        if (self.margin_left != correct_style.margin_left):
+            errors.append(ErrorType.MARGIN_LEFT)
+        if (self.text_indent != correct_style.text_indent):
+            errors.append(ErrorType.TEXT_INDENT)
+        if (self.text_align != correct_style.text_align):
+            errors.append(ErrorType.ALIGNMENT)
+        if (self.padding_bottom != correct_style.padding_bottom):
+            errors.append(ErrorType.LOWER_OFFSET)
+        if (self.padding_top != correct_style.padding_top):
+            errors.append(ErrorType.UPPER_OFFSET)
+        if (self.color != correct_style.color):
+            errors.append(ErrorType.COLOR)
+        
+        return [
+            ErrorType.FONT if self.font != correct_style.font
+        ]
+
+        return errors
+
+
 correct_style = StyleInfo(
     font = 'Times New Roman',
     size = '14pt',
@@ -264,25 +293,7 @@ class StyleChecker:
                             case "padding-top":
                                 style.padding_top = item
 
-            if (style.font != correct_style.font):
-                errors.append(ErrorType.FONT)
-            if (style.size != correct_style.size):
-                errors.append(ErrorType.FONT_SIZE)
-            if (style.margin_right != correct_style.margin_right):
-                errors.append(ErrorType.MARGIN_RIGHT)
-            if (style.margin_left != correct_style.margin_left):
-                errors.append(ErrorType.MARGIN_LEFT)
-            if (style.text_indent != correct_style.text_indent):
-                errors.append(ErrorType.TEXT_INDENT)
-            if (style.text_align != correct_style.text_align):
-                errors.append(ErrorType.ALIGNMENT)
-            if (style.padding_bottom != correct_style.padding_bottom):
-                errors.append(ErrorType.LOWER_OFFSET)
-            if (style.padding_top != correct_style.padding_top):
-                errors.append(ErrorType.UPPER_OFFSET)
-            if (style.color != correct_style.color):
-                errors.append(ErrorType.COLOR)
-            self.styleErrors[name_style] = errors
+            self.styleErrors[name_style] = style.collect_errors()
 
     def __check_style(self, style_name: str) -> list[ErrorType]: 
         try:
