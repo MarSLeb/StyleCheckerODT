@@ -15,6 +15,8 @@ class StyleInfo:
     margin_left: str
     text_indent: str
     text_align: str
+    padding_top: str
+    padding_bottom: str
     color: str
 
 correct_style = StyleInfo(
@@ -23,6 +25,8 @@ correct_style = StyleInfo(
     margin_right = '-1.85cm',
     margin_left = '-1.75cm',
     text_indent = '1.251cm',
+    padding_top = '0.199cm',
+    padding_bottom = '0.199cm',
     text_align = 'justify',
     color = '#000000',
 )
@@ -34,6 +38,8 @@ default_style = StyleInfo(
     size = '12pt',
     text_indent = '0cm',
     text_align = "",
+    padding_top = "",
+    padding_bottom = "",
     color = '#000000',
 )
 
@@ -84,6 +90,10 @@ class ErrorType(Enum):
 арабскими цифрами по схеме «рисунок номер_раздела.номер_рисунка - описание»'
             case ErrorType.COLOR:
                 return 'цвет текста должен быть черным'
+            case ErrorType.LOWER_OFFSET:
+                return 'нижнее поле страницы должно быть 20мм'
+            case ErrorType.UPPER_OFFSET:
+                return 'верхнее поле страницы должно быть 20мм'
             case _:
                 return 'неизвестная ошибка'
 
@@ -139,7 +149,7 @@ class StyleChecker:
 
     def run(self):
         with tempfile.TemporaryDirectory() as work_dir:
-            with zipfile.ZipFile("test.odt") as source_file:
+            with zipfile.ZipFile(self.file_name) as source_file:
                 source_file.extractall(work_dir)
             file = ET.parse(work_dir + "/content.xml")
             root_tree = Elem_xml_tree(file.getroot())
@@ -249,6 +259,10 @@ class StyleChecker:
                                 style.text_indent = item   
                             case "text-align":
                                 style.text_align = item 
+                            case "padding-bottom":
+                                style.padding_bottom = item
+                            case "padding-top":
+                                style.padding_top = item
 
             if (style.font != correct_style.font):
                 errors.append(ErrorType.FONT)
@@ -262,6 +276,10 @@ class StyleChecker:
                 errors.append(ErrorType.TEXT_INDENT)
             if (style.text_align != correct_style.text_align):
                 errors.append(ErrorType.ALIGNMENT)
+            if (style.padding_bottom != correct_style.padding_bottom):
+                errors.append(ErrorType.LOWER_OFFSET)
+            if (style.padding_top != correct_style.padding_top):
+                errors.append(ErrorType.UPPER_OFFSET)
             if (style.color != correct_style.color):
                 errors.append(ErrorType.COLOR)
             self.styleErrors[name_style] = errors
