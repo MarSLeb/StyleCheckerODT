@@ -40,10 +40,6 @@ class StyleInfo:
             errors.append(ErrorType.UPPER_OFFSET)
         if (self.color != correct_style.color):
             errors.append(ErrorType.COLOR)
-        
-        return [
-            ErrorType.FONT if self.font != correct_style.font
-        ]
 
         return errors
 
