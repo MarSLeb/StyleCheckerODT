@@ -15,6 +15,7 @@ class ScrollLabel(QScrollArea):
         self.label = QLabel(content)
         self.label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         self.label.setWordWrap(True)
+        self.label.setMaximumWidth(650)
         lay.addWidget(self.label)
 
     def setText(self, text):
@@ -49,7 +50,11 @@ class MainWindow(QMainWindow):
         file = getOpenFilesAndDirs(filter='(*.odt)')
         if (len(file) == 1):
             check = checker.StyleChecker(file[0])
-            self.scrollArea.setText('\n'.join(check.run()))
+            errors = check.run()
+            if (len(errors) == 0):
+                self.scrollArea.setText("все верно")
+            else:
+                self.scrollArea.setText('\n'.join(errors))
         else: 
             self.scrollArea.setText('Выберите один файл.')
 

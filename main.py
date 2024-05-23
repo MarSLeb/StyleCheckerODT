@@ -8,7 +8,10 @@ if (len(sys.argv) == 2 and sys.argv[1][-4:] == ".odt"):
         errors = check.run()
     except Exception:
         print("Файл не существует.")
-    for error in errors:
-        print (error)
+    if (len(errors) == 0):
+        print("все верно")
+    else:
+        for error in errors:
+            print (error)
 else:
     print("Файл не был введен или имеет неверное расширение")
