@@ -42,7 +42,7 @@ class MainWindow(QMainWindow):
 
         save_button = QPushButton("Сохранить исправления в файл.")
         save_button.setCheckable(True)
-        save_button.clicked.connect(self.push_save_file_buttom)
+        save_button.clicked.connect(self.push_save_file_button)
 
         self.scrollArea = ScrollLabel()
         self.scrollArea.setText("Файл не выбран.")
@@ -70,34 +70,24 @@ class MainWindow(QMainWindow):
             return
 
         elif (len(file) == 0):
-            self.none_file()
+            popup("Выберите файл.")
         else: 
-            self.many_files()
+            popup("Выберите один файл.")
 
-    def none_file(self):
-        mess = QMessageBox()
-        mess.setText("Выберите файл.")
-        mess.exec()
-    def many_files(self):
-        mess = QMessageBox()
-        mess.setText("Выберите один файл.")
-        mess.exec()
-
-    def push_save_file_buttom(self):
+    def push_save_file_button(self):
         if (self.file == ""):
-            mess = QMessageBox()
-            mess.setText("Файл не сохранен.")
-            mess.exec()
+            popup("Файл не сохранен.")
             return
         
         f = open(self.file + "_right.txt", "a")
         f.write(self.text)
         f.close()
-        mess = QMessageBox()
-        mess.setText("Файл сохранен.")
-        mess.exec()
+        popup("Файл сохранен.")
 
-
+def popup(text):
+    messageBox = QMessageBox()
+    messageBox.setText(text)
+    messageBox.exec()
 
 def getOpenFilesAndDirs(parent=None, caption='', directory='', 
                         filter='', initialFilter='', options=None):
