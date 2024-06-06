@@ -85,9 +85,21 @@ class ErrorType(Enum):
     SPACE_ABOVE_IMAGE = 14
     SPACE_UNDER_IMAGE = 15
     NAME_OF_IMAGE = 16
+    FIRST_CHAR_IN_CHAR_LIST = 17
+    FIRST_CHAR_IN_NUM_LIST = 18
+    LAST_CHAR_IN_CHAR_LIST = 19
+    LAST_CHAR_IN_NUM_LIST = 20
 
     def pretty(self) -> str:
         match self:
+            case ErrorType.FIRST_CHAR_IN_CHAR_LIST:
+                return 'маркированный список начинается с большой буквы в первом пункте, и с маленьких в последующих'
+            case ErrorType.FIRST_CHAR_IN_NUM_LIST:
+                return 'нумерованный список начинается с большой буквы в каждом пункте'
+            case ErrorType.LAST_CHAR_IN_CHAR_LIST:
+                return 'последний пункт маркированного списка оканчивается точкой, остальные - запятой'
+            case ErrorType.LAST_CHAR_IN_NUM_LIST:
+                return 'пункты нумерованного списка оканчиваются точкой'
             case ErrorType.FONT:
                 return 'шрифт Times New Roman'
             case ErrorType.FONT_SIZE:
@@ -131,7 +143,7 @@ class Error:
 
     def pretty(self) -> str:
         output = self.text +'\n'
-        output += '^' * len(self.text) + '\n'
+        output += '^' * min(87, len(self.text)) + '\n'
         output += 'Исправить оформление на:\n'
         for error in self.errors:
             output += f"- {error.pretty()}\n"
@@ -161,6 +173,7 @@ class StyleChecker:
 
     file_name: str
     styleErorrs: dict[list[ErrorType]]
+    listStyle: dict[list[str]]
     tree: list[ET.Element]
     all_errors: list[str]
     data: list[str]
@@ -168,6 +181,7 @@ class StyleChecker:
     def __init__(self, name):
         self.file_name = name
         self.styleErrors = {}
+        self.listStyle = {}
         self.tree = []
         self.all_errors = []
         self.data = []
@@ -185,8 +199,12 @@ class StyleChecker:
                 case "font-face-decls":
                     pass 
                 case "automatic-styles":
-                    for style in chapter.children:
-                        self.__is_valid_style(style)
+                    for i in range(len(chapter.children)):
+                        match chapter.children[i].tag:
+                            case "style":
+                                self.__is_valid_style(chapter.children[i])
+                            case "list-style":
+                                self.__add_list_style(chapter.children[i])
                 case "body":
                     for body_chapter in chapter.children:
                         if (body_chapter.tag == "text"):
@@ -208,7 +226,7 @@ class StyleChecker:
                 case "table-of-content":
                     pass
                 case "list":
-                    pass
+                    errors += self.__check_list(root.children[i])
                 
             for error in errors:
                 self.all_errors.append(error.pretty())
@@ -216,6 +234,48 @@ class StyleChecker:
             if (root.children[i].tag != "p" and root.children[i].tag != "h"):
                 self.__check_text(root.children[i])
             
+    def __check_list(self, node: Elem_xml_tree):
+        errors = []
+        for (tag, item) in node.xml_elem.attrib.items():
+            _, _, tail_tag = tag.partition('}')
+            if (tail_tag == "style-name"):
+                bullet = self.listStyle[item]
+            text = []
+            for child in node.children:
+                if (child.tag == "list-item"):
+                    text.append(internal_text(child))
+            for i in range(len(text)):
+                if (bullet == "char"): 
+                    if (i == 0):
+                        if (text[i][0].islower()):
+                            errors.append(ErrorType.FIRST_CHAR_IN_CHAR_LIST)
+                            break
+                    else:
+                        if (text[i][0].isupper()):
+                            errors.append(ErrorType.FIRST_CHAR_IN_CHAR_LIST)
+                            break
+                else:
+                    if (text[i][0].islower()):
+                        errors.append(ErrorType.FIRST_CHAR_IN_NUM_LIST)
+                        break
+            for i in range(len(text)):
+                if (bullet == "char"): 
+                    if (i == 0):
+                        if (text[i][len(text[i]) - 1] != ','):
+                            errors.append(ErrorType.LAST_CHAR_IN_CHAR_LIST)
+                            break
+                    else:
+                        if (text[i][len(text[i]) - 1] != '.'):
+                            errors.append(ErrorType.LAST_CHAR_IN_CHAR_LIST)
+                            break
+                else:
+                    if (text[i][len(text[i]) - 1] != '.'):
+                            errors.append(ErrorType.LAST_CHAR_IN_NUM_LIST)
+                            break
+                if (len(errors) != 0):
+                    meow = "\n".join(text)
+                    return [Error(meow, errors)]
+        return []
             
     def __check_image(self, node: Elem_xml_tree, num):
         for _, _, elem in RenderTree(node.children[num]):
@@ -251,10 +311,25 @@ class StyleChecker:
                 errors.append(ErrorType.NAME_OF_IMAGE)
                 return [Error(text, errors)]
         return []
+    
+    def __add_list_style(self, elem: Elem_xml_tree):
+        if(elem.tag == "list-style"):
+            bullet = ""
+            name_style = ""
+            for (tag, item) in elem.xml_elem.attrib.items():
+                _, _, tail_tag = tag.partition('}')
+                if (tail_tag == "name"):
+                    name_style = item
+            for child in elem.children:
+                if (child.tag == "list-level-style-bullet"):
+                    bullet = "char"
+                else:
+                    bullet = "num"
+                break
+            self.listStyle[name_style] = bullet
 
     def __is_valid_style(self, elem: Elem_xml_tree):
         if (elem.tag == "style"):
-            errors = []
             style = default_style
             name_style = ""
 
