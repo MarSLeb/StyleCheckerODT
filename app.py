@@ -36,16 +36,16 @@ class MainWindow(QMainWindow):
 
         layout = QVBoxLayout()
 
-        select_button = QPushButton("Выбрать файл для проверки.")
+        select_button = QPushButton("Выбрать файл для проверки")
         select_button.setCheckable(True)
         select_button.clicked.connect(self.push_select_file_buttom)
 
-        save_button = QPushButton("Сохранить исправления в файл.")
+        save_button = QPushButton("Сохранить исправления в файл")
         save_button.setCheckable(True)
         save_button.clicked.connect(self.push_save_file_button)
 
         self.scrollArea = ScrollLabel()
-        self.scrollArea.setText("Файл не выбран.")
+        self.scrollArea.setText("Файл не выбран")
 
         layout.addWidget(select_button)
         layout.addWidget(save_button)
@@ -70,19 +70,19 @@ class MainWindow(QMainWindow):
             return
 
         elif (len(file) == 0):
-            popup("Выберите файл.")
+            popup("Выберите файл")
         else: 
-            popup("Выберите один файл.")
+            popup("Выберите один файл")
 
     def push_save_file_button(self):
         if (self.file == ""):
-            popup("Файл не сохранен.")
+            popup("Файл не сохранен")
             return
         
-        f = open(self.file + "_right.txt", "a")
+        f = open(self.file + "_corrections.txt", "a")
         f.write(self.text)
         f.close()
-        popup("Файл сохранен.")
+        popup("Файл сохранен")
 
 def popup(text):
     messageBox = QMessageBox()
