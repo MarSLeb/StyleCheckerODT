@@ -89,13 +89,13 @@ class ErrorType(Enum):
     LAST_CHAR_IN_CHAR_LIST = 19
     LAST_CHAR_IN_NUM_LIST = 20
     ABSENCE_OF_FOOTER = 21
-    FOOTER_ON_FIRST_PAGE = 22
+    DONT_FOOTER_ON_FIRST_PAGE = 22
 
     def pretty(self) -> str:
         match self:
             case ErrorType.ABSENCE_OF_FOOTER:
                 return 'должена присутствовать нумераций страниц снизу страницы по середине'
-            case ErrorType.FOOTER_ON_FIRST_PAGE:
+            case ErrorType.DONT_FOOTER_ON_FIRST_PAGE:
                 return 'на титульном листе нумерация страниц должна отстутствовать'
             case ErrorType.FIRST_CHAR_IN_CHAR_LIST:
                 return 'маркированный список должен начинаться с большой буквы в первом пункте, и с маленьких в последующих'
@@ -183,6 +183,7 @@ class StyleChecker:
     all_errors: list[str]
     data: list[str]
     footer: bool
+    footer_on_first_page: bool
 
     def __init__(self, name):
         self.file_name = name
@@ -192,6 +193,7 @@ class StyleChecker:
         self.all_errors = []
         self.data = []
         self.footer = False
+        self.footer_on_first_page = False
 
     def run(self) -> list[Error]:
         with tempfile.TemporaryDirectory() as work_dir:
@@ -216,9 +218,13 @@ class StyleChecker:
                     for body_chapter in chapter.children:
                         if (body_chapter.tag == "text"):
                             self.__check_text(body_chapter)
-
+        errors = []
         if (not self.footer):
-            self.all_errors.append(Error("оформление колонтинулов", [ErrorType.ABSENCE_OF_FOOTER]))
+            errors.append(ErrorType.ABSENCE_OF_FOOTER)
+        if (not (self.footer or self.footer_on_first_page)):
+            errors.append(ErrorType.DONT_FOOTER_ON_FIRST_PAGE)
+        if (len(errors) != 0):
+            self.all_errors.append(Error("оформление колонтинулов", errors))
         return self.all_errors
 
     def __check_text(self, root: Elem_xml_tree):
@@ -357,6 +363,8 @@ class StyleChecker:
                     name_style = item
                 if (tail_tag == 'parent-style-name' and item == 'Footer'):
                     footer_flag = True
+                if (tail_tag == "master-page-name"):
+                    self.footer_on_first_page = True
             for child in elem.children:
                 if (child.tag == "text-properties"):
                     for (tag, item) in child.xml_elem.attrib.items():
