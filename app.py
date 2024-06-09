@@ -45,14 +45,14 @@ class MainWindow(QMainWindow):
         file = getOpenFilesAndDirs(filter='(*.odt)')
         if (len(file) == 1):
             self.file = file[0][file[0].rfind("/") + 1 : file[0].find('.odt')]
-            check = checker.StyleChecker(file[0])
-            errors = check.run()
+            errors = checker.StyleChecker(file[0]).run()
             if (len(errors) == 0):
                 self.text = "все верно"
             else:
                 self.text = ""
                 for error in errors:
                     self.text += error.pretty() + "\n"
+            self.errorTree.clear()
             self.errorTree.setHeaderLabel(self.file)
             self.listErrors(errors)
             return
