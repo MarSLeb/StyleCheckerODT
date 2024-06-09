@@ -88,9 +88,15 @@ class ErrorType(Enum):
     FIRST_CHAR_IN_NUM_LIST = 18
     LAST_CHAR_IN_CHAR_LIST = 19
     LAST_CHAR_IN_NUM_LIST = 20
+    ABSENCE_OF_FOOTER = 21
+    FOOTER_ON_FIRST_PAGE = 22
 
     def pretty(self) -> str:
         match self:
+            case ErrorType.ABSENCE_OF_FOOTER:
+                return 'должена присутствовать нумераций страниц снизу страницы по середине'
+            case ErrorType.FOOTER_ON_FIRST_PAGE:
+                return 'на титульном листе нумерация страниц должна отстутствовать'
             case ErrorType.FIRST_CHAR_IN_CHAR_LIST:
                 return 'маркированный список должен начинаться с большой буквы в первом пункте, и с маленьких в последующих'
             case ErrorType.FIRST_CHAR_IN_NUM_LIST:
@@ -176,6 +182,7 @@ class StyleChecker:
     tree: list[ET.Element]
     all_errors: list[str]
     data: list[str]
+    footer: bool
 
     def __init__(self, name):
         self.file_name = name
@@ -184,6 +191,7 @@ class StyleChecker:
         self.tree = []
         self.all_errors = []
         self.data = []
+        self.footer = False
 
     def run(self) -> list[Error]:
         with tempfile.TemporaryDirectory() as work_dir:
@@ -208,6 +216,9 @@ class StyleChecker:
                     for body_chapter in chapter.children:
                         if (body_chapter.tag == "text"):
                             self.__check_text(body_chapter)
+
+        if (not self.footer):
+            self.all_errors.append(Error("оформление колонтинулов", [ErrorType.ABSENCE_OF_FOOTER]))
         return self.all_errors
 
     def __check_text(self, root: Elem_xml_tree):
@@ -339,11 +350,13 @@ class StyleChecker:
         if (elem.tag == "style"):
             style = default_style
             name_style = ""
-
+            footer_flag = False
             for (tag, item) in elem.xml_elem.attrib.items():
                 _, _, tail_tag = tag.partition('}')
                 if (tail_tag == "name"):
                     name_style = item
+                if (tail_tag == 'parent-style-name' and item == 'Footer'):
+                    footer_flag = True
             for child in elem.children:
                 if (child.tag == "text-properties"):
                     for (tag, item) in child.xml_elem.attrib.items():
@@ -370,6 +383,9 @@ class StyleChecker:
                                 style.padding_bottom = item
                             case "padding-top":
                                 style.padding_top = item
+
+            if (footer_flag and style.text_align == 'center'):
+                self.footer = True
 
             self.styleErrors[name_style] = style.collect_errors()
 
