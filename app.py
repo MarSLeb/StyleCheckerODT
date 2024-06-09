@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QFileDialog,
     QVBoxLayout, QWidget, QScrollArea
 import sys
 import checker
+from centered_message_box import CenteredMessageBox
 
 class ScrollLabel(QScrollArea):
     def __init__(self):
@@ -85,8 +86,9 @@ class MainWindow(QMainWindow):
         popup("Файл сохранен")
 
 def popup(text):
-    messageBox = QMessageBox()
+    messageBox = CenteredMessageBox()
     messageBox.setText(text)
+    messageBox.setStyleSheet("QLabel{min-width: 140px;}")
     messageBox.exec()
 
 def getOpenFilesAndDirs(parent=None, caption='', directory='', 
