@@ -4,7 +4,6 @@ import tempfile
 from dataclasses import dataclass
 from enum import Enum
 from anytree import NodeMixin, RenderTree
-from time import sleep
 
 
 @dataclass
@@ -283,7 +282,15 @@ class StyleChecker:
                 return []  
         for _, _, elem in RenderTree(node.children[num]):
             if (elem.tag == "image"):
-                text = ""
+
+                meow = node
+                while (meow.parent.tag != "body"):
+                    meow = meow.parent
+                if (meow != node):
+                    return []
+                ## проверка не находится ли картинка в таблицах и т.п.
+
+                text = "неизвестный рисунок"
                 errors = []
                 if (num == 0 or internal_text(node.children[num - 1]) != ""):
                     errors.append(ErrorType.SPACE_ABOVE_IMAGE)
