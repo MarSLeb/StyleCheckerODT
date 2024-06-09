@@ -1,29 +1,13 @@
 from PyQt5.QtCore import QSize, Qt
 from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QFileDialog, \
     QLineEdit, QListView, QStackedWidget, QDialog, QLabel, QMessageBox, \
-    QVBoxLayout, QWidget, QScrollArea
+    QVBoxLayout, QWidget, QTreeWidget, QTreeWidgetItem
 import sys
 import checker
-from centered_message_box import CenteredMessageBox
-
-class ScrollLabel(QScrollArea):
-    def __init__(self):
-        QScrollArea.__init__(self)
-        self.setWidgetResizable(True)
-        content = QWidget(self)
-        self.setWidget(content)
-        lay = QVBoxLayout(content)
-        self.label = QLabel(content)
-        self.label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-        self.label.setWordWrap(True)
-        self.label.setMaximumWidth(650)
-        lay.addWidget(self.label)
-
-    def setText(self, text):
-        self.label.setText(text)
+from widgets import CenteredMessageBox
 
 class MainWindow(QMainWindow):
-    scrollArea: ScrollLabel
+    errorTree: QTreeWidget
     file: str
     text: str
 
@@ -45,12 +29,12 @@ class MainWindow(QMainWindow):
         save_button.setCheckable(True)
         save_button.clicked.connect(self.push_save_file_button)
 
-        self.scrollArea = ScrollLabel()
-        self.scrollArea.setText("Файл не выбран")
+        self.errorTree = QTreeWidget()
+        self.errorTree.setHeaderLabel("Файл не выбран")
 
         layout.addWidget(select_button)
         layout.addWidget(save_button)
-        layout.addWidget(self.scrollArea)
+        layout.addWidget(self.errorTree)
 
         widget = QWidget()
         widget.setLayout(layout)
@@ -66,14 +50,30 @@ class MainWindow(QMainWindow):
             if (len(errors) == 0):
                 self.text = "все верно"
             else:
-                self.text = '\n'.join(errors)
-            self.scrollArea.setText(self.text)
+                self.text = ""
+                for error in errors:
+                    self.text += error.pretty() + "\n"
+            self.errorTree.setHeaderLabel(self.file)
+            self.listErrors(errors)
             return
 
         elif (len(file) == 0):
             popup("Выберите файл")
         else: 
             popup("Выберите один файл")
+
+    def listErrors(self, errors: list[checker.Error]):
+        def wordWrapLabel(text: str) -> QLabel:
+            label = QLabel(text)
+            label.setWordWrap(True)
+            return label
+
+        for errorLine in errors:
+            lineEntry = QTreeWidgetItem(self.errorTree)
+            self.errorTree.setItemWidget(lineEntry, 0, wordWrapLabel(errorLine.text))
+            for errorDescription in errorLine.errors:
+                errorEntry = QTreeWidgetItem(lineEntry)
+                self.errorTree.setItemWidget(errorEntry, 0, wordWrapLabel(errorDescription.pretty()))
 
     def push_save_file_button(self):
         if (self.file == ""):

@@ -12,6 +12,6 @@ if (len(sys.argv) == 2 and sys.argv[1][-4:] == ".odt"):
         print("все верно")
     else:
         for error in errors:
-            print (error)
+            print(error.pretty())
 else:
     print("Файл не был введен или имеет неверное расширение")

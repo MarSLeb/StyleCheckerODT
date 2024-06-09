@@ -93,31 +93,31 @@ class ErrorType(Enum):
     def pretty(self) -> str:
         match self:
             case ErrorType.FIRST_CHAR_IN_CHAR_LIST:
-                return 'маркированный список начинается с большой буквы в первом пункте, и с маленьких в последующих'
+                return 'маркированный список должен начинаться с большой буквы в первом пункте, и с маленьких в последующих'
             case ErrorType.FIRST_CHAR_IN_NUM_LIST:
-                return 'нумерованный список начинается с большой буквы в каждом пункте'
+                return 'нумерованный список должен начинаться с большой буквы в каждом пункте'
             case ErrorType.LAST_CHAR_IN_CHAR_LIST:
-                return 'последний пункт маркированного списка оканчивается точкой, остальные - запятой'
+                return 'последний пункт маркированного списка должен оканчиваться точкой, остальные - запятой'
             case ErrorType.LAST_CHAR_IN_NUM_LIST:
-                return 'пункты нумерованного списка оканчиваются точкой'
+                return 'пункты нумерованного списка должны оканчиваться точкой'
             case ErrorType.FONT:
-                return 'шрифт Times New Roman'
+                return 'шрифт должен быть Times New Roman'
             case ErrorType.FONT_SIZE:
-                return 'размер шрифта 14pt'
+                return 'размер шрифта должен быть 14pt'
             case ErrorType.MARGIN_RIGHT:
-                return 'отступ справа 15мм'
+                return 'отступ справа должен быть 15мм'
             case ErrorType.MARGIN_LEFT:
-                return 'отступ слева 25мм'
+                return 'отступ слева должен быть 25мм'
             case ErrorType.TEXT_INDENT:
-                return 'абзацный отступ 125мм'
+                return 'абзацный отступ должен быть 125мм'
             case ErrorType.ALIGNMENT:
-                return 'выравнивание по ширине'
+                return 'выравнивание должно быть ширине'
             case ErrorType.HEADER_DOT:
                 return 'точка после номера и в конце названия раздела не ставится'
             case ErrorType.HEADER_NEWLINE:
                 return 'после заглавия должна быть пропущена строка'
             case ErrorType.INVALID_STYLE:
-                return '???'
+                return 'текст использует несуществующий стиль. С вашим ODF-файлом что-то не так'
             case ErrorType.SPACE_ABOVE_IMAGE:
                 return 'при размещении страниц в тексте следует отделять рисунок от текста пустой строкой сверху'
             case ErrorType.SPACE_UNDER_IMAGE:
@@ -144,7 +144,7 @@ class Error:
     def pretty(self) -> str:
         output = self.text +'\n'
         output += '^' * min(87, len(self.text)) + '\n'
-        output += 'Исправить оформление на:\n'
+        output += 'Ошибки:\n'
         for error in self.errors:
             output += f"- {error.pretty()}\n"
         return output
@@ -186,7 +186,7 @@ class StyleChecker:
         self.all_errors = []
         self.data = []
 
-    def run(self):
+    def run(self) -> list[Error]:
         with tempfile.TemporaryDirectory() as work_dir:
             with zipfile.ZipFile(self.file_name) as source_file:
                 source_file.extractall(work_dir)
@@ -229,7 +229,7 @@ class StyleChecker:
                     errors += self.__check_list(root.children[i])
                 
             for error in errors:
-                self.all_errors.append(error.pretty())
+                self.all_errors.append(error)
 
             if (root.children[i].tag != "p" and root.children[i].tag != "h"):
                 self.__check_text(root.children[i])
