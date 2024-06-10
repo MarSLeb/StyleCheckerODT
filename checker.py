@@ -90,6 +90,7 @@ class ErrorType(Enum):
     LAST_CHAR_IN_NUM_LIST = 20
     ABSENCE_OF_FOOTER = 21
     DONT_FOOTER_ON_FIRST_PAGE = 22
+    NO_TABLE_OF_CONTENTS = 23
 
     def pretty(self) -> str:
         match self:
@@ -136,6 +137,8 @@ class ErrorType(Enum):
                 return 'нижнее поле страницы должно быть 20мм'
             case ErrorType.UPPER_OFFSET:
                 return 'верхнее поле страницы должно быть 20мм'
+            case ErrorType.NO_TABLE_OF_CONTENTS:
+                return 'в файле должно быть авто оглавление'
             case _:
                 return 'неизвестная ошибка'
 
@@ -184,6 +187,7 @@ class StyleChecker:
     data: list[str]
     footer: bool
     footer_on_first_page: bool
+    table_of_contents: bool
 
     def __init__(self, name):
         self.file_name = name
@@ -194,6 +198,7 @@ class StyleChecker:
         self.data = []
         self.footer = False
         self.footer_on_first_page = False
+        self.table_of_contents = False
 
     def run(self) -> list[Error]:
         with tempfile.TemporaryDirectory() as work_dir:
@@ -223,8 +228,10 @@ class StyleChecker:
             errors.append(ErrorType.ABSENCE_OF_FOOTER)
         if not (self.footer or self.footer_on_first_page):
             errors.append(ErrorType.DONT_FOOTER_ON_FIRST_PAGE)
+        if not self.table_of_contents:
+            errors.append(ErrorType.NO_TABLE_OF_CONTENTS)
         if len(errors) != 0:
-            self.all_errors.append(Error("оформление колонтитулов", errors))
+            self.all_errors.append(Error("<глобальные ошибки>", errors))
         return self.all_errors
 
     def __check_text(self, root: Elem_xml_tree):
@@ -240,7 +247,7 @@ class StyleChecker:
                     errors += self.__check_header(root.children[i], root.children[i + 1] \
                                       if i + 1 != len(root.children) else None)
                 case "table-of-content":
-                    pass
+                    self.table_of_contents = True
                 case "list":
                     errors += self.__check_list(root.children[i])
                 
