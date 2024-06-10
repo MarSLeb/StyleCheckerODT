@@ -43,10 +43,10 @@ class MainWindow(QMainWindow):
 
     def push_select_file_buttom(self):
         file = getOpenFilesAndDirs(filter='(*.odt)')
-        if (len(file) == 1):
+        if len(file) == 1:
             self.file = file[0][file[0].rfind("/") + 1 : file[0].find('.odt')]
             errors = checker.StyleChecker(file[0]).run()
-            if (len(errors) == 0):
+            if len(errors) == 0:
                 self.text = "все верно"
             else:
                 self.text = ""
@@ -57,7 +57,7 @@ class MainWindow(QMainWindow):
             self.listErrors(errors)
             return
 
-        elif (len(file) == 0):
+        elif len(file) == 0:
             popup("Выберите файл")
         else: 
             popup("Выберите один файл")
@@ -76,7 +76,7 @@ class MainWindow(QMainWindow):
                 self.errorTree.setItemWidget(errorEntry, 0, wordWrapLabel(errorDescription.pretty()))
 
     def push_save_file_button(self):
-        if (self.file == ""):
+        if self.file == "":
             popup("Файл не сохранен")
             return
         
