@@ -21,23 +21,23 @@ class StyleInfo:
     def collect_errors(self):
         errors = []
 
-        if (self.font != correct_style.font):
+        if self.font != correct_style.font:
             errors.append(ErrorType.FONT)
-        if (self.size != correct_style.size):
+        if self.size != correct_style.size:
             errors.append(ErrorType.FONT_SIZE)
-        if (self.margin_right != correct_style.margin_right):
+        if self.margin_right != correct_style.margin_right:
             errors.append(ErrorType.MARGIN_RIGHT)
-        if (self.margin_left != correct_style.margin_left):
+        if self.margin_left != correct_style.margin_left:
             errors.append(ErrorType.MARGIN_LEFT)
-        if (self.text_indent != correct_style.text_indent):
+        if self.text_indent != correct_style.text_indent:
             errors.append(ErrorType.TEXT_INDENT)
-        if (self.text_align != correct_style.text_align):
+        if self.text_align != correct_style.text_align:
             errors.append(ErrorType.ALIGNMENT)
-        if (self.padding_bottom != correct_style.padding_bottom):
+        if self.padding_bottom != correct_style.padding_bottom:
             errors.append(ErrorType.LOWER_OFFSET)
-        if (self.padding_top != correct_style.padding_top):
+        if self.padding_top != correct_style.padding_top:
             errors.append(ErrorType.UPPER_OFFSET)
-        if (self.color != correct_style.color):
+        if self.color != correct_style.color:
             errors.append(ErrorType.COLOR)
 
         return errors
@@ -94,7 +94,7 @@ class ErrorType(Enum):
     def pretty(self) -> str:
         match self:
             case ErrorType.ABSENCE_OF_FOOTER:
-                return 'должена присутствовать нумераций страниц снизу страницы по середине'
+                return 'должна присутствовать нумерация страниц снизу страницы посередине'
             case ErrorType.DONT_FOOTER_ON_FIRST_PAGE:
                 return 'на титульном листе нумерация страниц должна отстутствовать'
             case ErrorType.FIRST_CHAR_IN_CHAR_LIST:
@@ -216,15 +216,15 @@ class StyleChecker:
                                 self.__add_list_style(chapter.children[i])
                 case "body":
                     for body_chapter in chapter.children:
-                        if (body_chapter.tag == "text"):
+                        if body_chapter.tag == "text":
                             self.__check_text(body_chapter)
         errors = []
-        if (not self.footer):
+        if not self.footer:
             errors.append(ErrorType.ABSENCE_OF_FOOTER)
-        if (not (self.footer or self.footer_on_first_page)):
+        if not (self.footer or self.footer_on_first_page):
             errors.append(ErrorType.DONT_FOOTER_ON_FIRST_PAGE)
-        if (len(errors) != 0):
-            self.all_errors.append(Error("оформление колонтинулов", errors))
+        if len(errors) != 0:
+            self.all_errors.append(Error("оформление колонтитулов", errors))
         return self.all_errors
 
     def __check_text(self, root: Elem_xml_tree):
@@ -238,7 +238,7 @@ class StyleChecker:
                     errors += self.__check_image(root, i)
                 case "h":
                     errors += self.__check_header(root.children[i], root.children[i + 1] \
-                                      if (i + 1 != len(root.children)) else None)
+                                      if i + 1 != len(root.children) else None)
                 case "table-of-content":
                     pass
                 case "list":
@@ -247,87 +247,87 @@ class StyleChecker:
             for error in errors:
                 self.all_errors.append(error)
 
-            if (root.children[i].tag != "p" and root.children[i].tag != "h"):
+            if root.children[i].tag != "p" and root.children[i].tag != "h":
                 self.__check_text(root.children[i])
             
     def __check_list(self, node: Elem_xml_tree):
         errors = []
         for (tag, item) in node.xml_elem.attrib.items():
             _, _, tail_tag = tag.partition('}')
-            if (tail_tag == "style-name"):
+            if tail_tag == "style-name":
                 bullet = self.listStyle[item]
             text = []
             for child in node.children:
-                if (child.tag == "list-item"):
+                if child.tag == "list-item":
                     text.append(internal_text(child))
             for i in range(len(text)):
-                if (bullet == "char"): 
-                    if (i == 0):
-                        if (text[i][0].islower()):
+                if bullet == "char": 
+                    if i == 0:
+                        if text[i][0].islower():
                             errors.append(ErrorType.FIRST_CHAR_IN_CHAR_LIST)
                             break
                     else:
-                        if (text[i][0].isupper()):
+                        if text[i][0].isupper():
                             errors.append(ErrorType.FIRST_CHAR_IN_CHAR_LIST)
                             break
                 else:
-                    if (text[i][0].islower()):
+                    if text[i][0].islower():
                         errors.append(ErrorType.FIRST_CHAR_IN_NUM_LIST)
                         break
             for i in range(len(text)):
-                if (bullet == "char"): 
-                    if (i == 0):
-                        if (text[i][len(text[i]) - 1] != ','):
+                if bullet == "char": 
+                    if i == 0:
+                        if text[i][len(text[i]) - 1] != ',':
                             errors.append(ErrorType.LAST_CHAR_IN_CHAR_LIST)
                             break
                     else:
-                        if (text[i][len(text[i]) - 1] != '.'):
+                        if text[i][len(text[i]) - 1] != '.':
                             errors.append(ErrorType.LAST_CHAR_IN_CHAR_LIST)
                             break
                 else:
-                    if (text[i][len(text[i]) - 1] != '.'):
+                    if text[i][len(text[i]) - 1] != '.':
                             errors.append(ErrorType.LAST_CHAR_IN_NUM_LIST)
                             break
-                if (len(errors) != 0):
+                if len(errors) != 0:
                     meow = "\n".join(text)
                     return [Error(meow, errors)]
         return []
             
     def __check_image(self, node: Elem_xml_tree, num):
         for _, _, elem in RenderTree(node.children[num]):
-            if (elem.tag == "annotation" or elem.tag == "annotation-end"):
+            if elem.tag == "annotation" or elem.tag == "annotation-end":
                 return []  
         for _, _, elem in RenderTree(node.children[num]):
-            if (elem.tag == "image"):
+            if elem.tag == "image":
 
                 meow = node
-                while (meow.parent.tag != "body"):
+                while meow.parent.tag != "body":
                     meow = meow.parent
-                if (meow != node):
+                if meow != node:
                     return []
                 ## проверка не находится ли картинка в таблицах и т.п.
 
                 text = "неизвестный рисунок"
                 errors = []
-                if (num == 0 or internal_text(node.children[num - 1]) != ""):
+                if num == 0 or internal_text(node.children[num - 1]) != "":
                     errors.append(ErrorType.SPACE_ABOVE_IMAGE)
-                if (num - 1 == len(node.children) or \
-                    num + 1 < len(node.children) and internal_text(node.children[num + 1]) != ""):
+                if num - 1 == len(node.children) or \
+                    num + 1 < len(node.children) and internal_text(node.children[num + 1]) != "":
                     errors.append(ErrorType.SPACE_UNDER_IMAGE)
                 
                 i = num + 1
-                while (i < len(node.children) and i < num + 3):
+                while i < len(node.children) and i < num + 3:
                     name = internal_text(node.children[i])
-                    if (node.children[i].tag == "p" and name != ""):
+                    if node.children[i].tag == "p" and name != "":
                         for _, _, meow in RenderTree(node.children[i]):
-                            if (meow.tag == "annotation" or meow.tag == "annotation-end"):
+                            if meow.tag == "annotation" or meow.tag == "annotation-end":
                                 return []
                         match name.split():
                             case ["рисунок", _, "-", *_]:
                                 text = name
                             case _:
                                 errors.append(ErrorType.NAME_OF_IMAGE)
-                        if (len(errors) != 0):
+                        if len(errors) != 0:
                             return [Error(text, errors)]
                         else:
                             return []
@@ -337,15 +337,15 @@ class StyleChecker:
         return []
     
     def __add_list_style(self, elem: Elem_xml_tree):
-        if(elem.tag == "list-style"):
+        if elem.tag == "list-style":
             bullet = ""
             name_style = ""
             for (tag, item) in elem.xml_elem.attrib.items():
                 _, _, tail_tag = tag.partition('}')
-                if (tail_tag == "name"):
+                if tail_tag == "name":
                     name_style = item
             for child in elem.children:
-                if (child.tag == "list-level-style-bullet"):
+                if child.tag == "list-level-style-bullet":
                     bullet = "char"
                 else:
                     bullet = "num"
@@ -353,29 +353,29 @@ class StyleChecker:
             self.listStyle[name_style] = bullet
 
     def __is_valid_style(self, elem: Elem_xml_tree):
-        if (elem.tag == "style"):
+        if elem.tag == "style":
             style = default_style
             name_style = ""
             footer_flag = False
             for (tag, item) in elem.xml_elem.attrib.items():
                 _, _, tail_tag = tag.partition('}')
-                if (tail_tag == "name"):
+                if tail_tag == "name":
                     name_style = item
-                if (tail_tag == 'parent-style-name' and item == 'Footer'):
+                if tail_tag == 'parent-style-name' and item == 'Footer':
                     footer_flag = True
-                if (tail_tag == "master-page-name"):
+                if tail_tag == "master-page-name":
                     self.footer_on_first_page = True
             for child in elem.children:
-                if (child.tag == "text-properties"):
+                if child.tag == "text-properties":
                     for (tag, item) in child.xml_elem.attrib.items():
                         _, _, tail_tag = tag.partition('}')
-                        if (tail_tag == "font-name"):
+                        if tail_tag == "font-name":
                             style.font = item
-                        if (tail_tag == "font-size"):
+                        if tail_tag == "font-size":
                             style.size = item
-                        if (tag.find('}color') != -1):
+                        if tag.find('}color') != -1:
                             style.color = item
-                if (child.tag == "paragraph-properties"):
+                if child.tag == "paragraph-properties":
                     for(tag, item) in child.xml_elem.attrib.items():
                         _, _, tail_tag = tag.partition('}')
                         match tail_tag:
@@ -392,7 +392,7 @@ class StyleChecker:
                             case "padding-top":
                                 style.padding_top = item
 
-            if (footer_flag and style.text_align == 'center'):
+            if footer_flag and style.text_align == 'center':
                 self.footer = True
 
             self.styleErrors[name_style] = style.collect_errors()
@@ -405,40 +405,40 @@ class StyleChecker:
 
     def __check_simple_text(self, elem: Elem_xml_tree) -> list[Error]:
         text = internal_text(elem)
-        if (text != ""):
+        if text != "":
             for _, _, child in RenderTree(elem):
-                if (child.tag == "annotation" or child.tag == "annotation-end"):
+                if child.tag == "annotation" or child.tag == "annotation-end":
                     return []
             errors = []
 
             for (tag, item) in elem.xml_elem.attrib.items():
                 _, _, tail_tag = tag.partition('}')
-                if (tail_tag == "style-name"):
+                if tail_tag == "style-name":
                     errors += self.__check_style(item)
-            if (len(errors) != 0):
+            if len(errors) != 0:
                 return [Error(text, errors)]
         return []
 
     def __check_header(self, elem: Elem_xml_tree, next_elem: Elem_xml_tree | None) -> list[Error]:
         text = internal_text(elem)
-        if (text != ""):
+        if text != "":
             for _, _, child in RenderTree(elem):
-                if (child.tag == "annotation" or child.tag == "annotation-end"):
+                if child.tag == "annotation" or child.tag == "annotation-end":
                     return []                
             errors = []
             for (tag, item) in elem.xml_elem.attrib.items():
                 _, _, tail_tag = tag.partition('}')
-                if (tail_tag == "style-name"):
+                if tail_tag == "style-name":
                     errors += self.__check_style(item)
             num = ""
             for i in text:
-                if (i.isnumeric()):
+                if i.isnumeric():
                     num += i
-            if (text == "" or next_elem is None or text[len(num)] == '.'):
+            if text == "" or next_elem is None or text[len(num)] == '.':
                 errors.append(ErrorType.HEADER_NEWLINE)
-            if (text[-1] == '.'):
+            if text[-1] == '.':
                 errors.append(ErrorType.HEADER_DOT)
-            if (len(errors) != 0):
+            if len(errors) != 0:
                 return [Error(text, errors)]
         return []
     
